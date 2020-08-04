@@ -16,10 +16,13 @@ const {
 const {
   getListings,
   getListing,
+  getListingsAll,
+  getListingSoft,
   createListing,
   updateListing,
   verifyListing,
   deleteListing,
+  deleteListingSoft
 } = require('../controllers/listings');
 
 // Include other resource's controllers to access their endpoints
@@ -37,7 +40,7 @@ router.use('/:listing_id/skills', skillRoute);
 // map routes to controller
 router
   .route('/')
-  .get(advancedResults('listings'), getListings)
+  .get(advancedResults('listingsview'), getListings)
   .post(
     protect,
     [
@@ -59,6 +62,14 @@ router
     ],
     checkInputError,
     createListing
+  );
+
+router
+  .route('/all')
+  .get(protect,
+    authorise('admin'),
+    advancedResults('listings'),
+    getListingsAll
   );
 
 router
@@ -110,7 +121,22 @@ router
     checkInputError,
     updateListing
   )
-  .delete(protect, deleteListing);
+  .delete(protect,
+    authorise('admin'),
+    deleteListing
+  );
+
+router
+  .route('/:id/soft_delete')
+  .get(protect,
+    authorise('admin'),
+    getListingSoft
+  )
+  .put(
+    protect,
+    authorise('admin', 'owner'),
+    deleteListingSoft
+  );
 
 router
   .route('/:id/verify')

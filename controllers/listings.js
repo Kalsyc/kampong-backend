@@ -13,13 +13,38 @@ exports.getListings = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get all listings (including soft deletes)
+ * @route   GET /api/listings/all
+ * @access  Admin
+ */
+exports.getListingsAll = asyncHandler(async (req, res) => {
+  res.status(200).json(res.advancedResults);
+});
+
+/**
+ * @desc    Get single listing (including soft deletes)
+ * @route   GET /api/listings/:id/soft_delete
+ * @access  Admin
+ */
+exports.getListingSoft = asyncHandler(async (req, res) => {
+  const rows = await db.one(
+    'SELECT * FROM listings WHERE listing_id = $1',
+    req.params.id
+  );
+  res.status(200).json({
+    success: true,
+    data: rows
+  });
+});
+
+/**
  * @desc    Get single listing
  * @route   GET /api/listings/:id
  * @access  Public
  */
 exports.getListing = asyncHandler(async (req, res) => {
   const rows = await db.one(
-    'SELECT * FROM listings WHERE listing_id = $1',
+    'SELECT * FROM listingsview WHERE listing_id = $1',
     req.params.id
   );
   res.status(200).json({
@@ -202,9 +227,44 @@ exports.verifyListing = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * @desc    Delete single listing
- * @route   DELETE /api/listings/:id
+ * @desc    Delete single listing (Soft Delete)
+ * @route   PUT /api/listings/:id/soft_delete
  * @access  Admin/Owner
+ */
+exports.deleteListingSoft = asyncHandler(async (req, res, next) => {
+  // check if listing exists
+  const listing = await db.oneOrNone(
+    'SELECT * FROM listings WHERE listing_id = $1',
+    req.params.id
+  );
+
+  // return bad request response if invalid listing
+  if (!listing) {
+    return next(new ErrorResponse(`Listing does not exist`, 400));
+  }
+
+  // Unauthorised if neither admin nor listing owner
+  if (!(req.user.role === 'admin' || req.user.user_id === listing.created_by)) {
+    return next(
+      new ErrorResponse(`User not authorised to delete this listing`, 403)
+    );
+  }
+
+  const rows = await db.one(
+    'UPDATE listings SET is_deleted=to_timestamp($2 / 1000.0) WHERE listing_id = $1 RETURNING *',
+    [req.params.id, Date.now()]
+  );
+
+  res.status(200).json({
+    success: true,
+    data: rows
+  });
+});
+
+/**
+ * @desc    Delete single listing permanently
+ * @route   DELETE /api/listings/:id
+ * @access  Admin
  */
 exports.deleteListing = asyncHandler(async (req, res, next) => {
   // check if listing exists
@@ -219,7 +279,7 @@ exports.deleteListing = asyncHandler(async (req, res, next) => {
   }
 
   // Unauthorised if neither admin nor listing owner
-  if (!(req.user.role === 'admin' || req.user.user_id === listing.created_by)) {
+  if (req.user.role !== 'admin') {
     return next(
       new ErrorResponse(`User not authorised to delete this listing`, 403)
     );

@@ -10,7 +10,7 @@ DROP TABLE IF EXISTS Organisations CASCADE;
 DROP TABLE IF EXISTS Memberships CASCADE;
 DROP TABLE IF EXISTS Listings CASCADE;
 DROP TABLE IF EXISTS Features CASCADE;
-DROP TABLE IF EXISTS Tags CASCADE;
+DROP TABLE IF EXISTS HashTags CASCADE;
 DROP TABLE IF EXISTS ListingSkills CASCADE;
 DROP TABLE IF EXISTS Jobs CASCADE;
 DROP TABLE IF EXISTS FAQs CASCADE;
@@ -37,22 +37,24 @@ CREATE TABLE Users (
 );
 
 CREATE TABLE PendingUsers (
+    pending_user_id SERIAL,
     first_name VARCHAR NOT NULL,
     last_name VARCHAR,
-    email VARCHAR(320),
+    email VARCHAR(320) UNIQUE NOT NULL,
     password VARCHAR NOT NULL,
     token VARCHAR UNIQUE NOT NULL,
     expiry TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    PRIMARY KEY (email)
+    PRIMARY KEY (pending_user_id)
 );
 
 CREATE TABLE ForgetPasswordUsers (
-    email VARCHAR(320),
+    forgetpass_user_id SERIAL,
+    email VARCHAR(320) UNIQUE NOT NULL,
     token VARCHAR UNIQUE NOT NULL,
     expiry TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    PRIMARY KEY (email)
+    PRIMARY KEY (forgetpass_user_id)
 );
 
 /*
@@ -79,7 +81,7 @@ CREATE TABLE Profiles (
     linkedin_link VARCHAR,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_on TIMESTAMP NOT NULL DEFAULT NOW(),
-    
+
     PRIMARY KEY (user_id),
     FOREIGN KEY (user_id) REFERENCES Users ON DELETE CASCADE
 );
@@ -92,10 +94,12 @@ CREATE TABLE Skills (
 );
 
 CREATE TABLE ProfileSkills (
-    user_id INTEGER,
-    skill_id INTEGER,
+    profile_skill_id SERIAL,
+    user_id INTEGER NOT NULL,
+    skill_id INTEGER NOT NULL,
 
-    PRIMARY KEY (user_id, skill_id),
+    PRIMARY KEY (profile_skill_id),
+    UNIQUE (user_id, skill_id),
     FOREIGN KEY (user_id) REFERENCES Users ON DELETE CASCADE,
     FOREIGN KEY (skill_id) REFERENCES Skills ON DELETE CASCADE
 );
@@ -110,17 +114,20 @@ CREATE TABLE Organisations (
     email VARCHAR(320),
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_on TIMESTAMP NOT NULL DEFAULT NOW(),
+    is_deleted TIMESTAMP DEFAULT NULL,
 
     PRIMARY KEY (organisation_id)
 );
 
 CREATE TABLE Memberships (
-    organisation_id INTEGER,
-    user_id INTEGER,
+    membership_id SERIAL,
+    organisation_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     is_owner BOOLEAN NOT NULL DEFAULT FALSE,
     joined_on TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    PRIMARY KEY(organisation_id, user_id),
+    PRIMARY KEY (membership_id),
+    UNIQUE (organisation_id, user_id),
     FOREIGN KEY (organisation_id) REFERENCES Organisations ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES Users ON DELETE CASCADE
 );
@@ -145,6 +152,7 @@ CREATE TABLE Listings (
     start_date TIMESTAMP NOT NULL DEFAULT NOW(),
     end_date TIMESTAMP,
     created_on TIMESTAMP NOT NULL DEFAULT NOW(),
+    is_deleted TIMESTAMP DEFAULT NULL,
 
     PRIMARY KEY (listing_id),
     FOREIGN KEY (organisation_id) REFERENCES Organisations ON DELETE SET NULL,
@@ -153,25 +161,30 @@ CREATE TABLE Listings (
 
 /* Featured listings */
 CREATE TABLE Features (
-    listing_id INTEGER,
+    feature_id SERIAL,
+    listing_id INTEGER UNIQUE NOT NULL,
 
-    PRIMARY KEY (listing_id),
+    PRIMARY KEY (feature_id),
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE
 );
 
-CREATE TABLE Tags (
+CREATE TABLE HashTags (
+    hashtag_id SERIAL,
     listing_id INTEGER,
-    description VARCHAR UNIQUE NOT NULL,
+    tag VARCHAR NOT NULL,
 
-    PRIMARY KEY (listing_id, description),
+    PRIMARY KEY (hashtag_id),
+    UNIQUE (listing_id, tag),
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE
 );
 
 CREATE TABLE ListingSkills (
-    listing_id INTEGER,
-    skill_id INTEGER,
-    
-    PRIMARY KEY (listing_id, skill_id),
+    listing_skill_id SERIAL,
+    listing_id INTEGER NOT NULL,
+    skill_id INTEGER NOT NULL,
+
+    PRIMARY KEY (listing_skill_id),
+    UNIQUE (listing_id, skill_id),
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE,
     FOREIGN KEY (skill_id) REFERENCES Skills ON DELETE CASCADE
 );
@@ -182,6 +195,7 @@ CREATE TABLE Jobs (
     listing_id INTEGER,
     job_title VARCHAR NOT NULL,
     job_description TEXT,
+    is_deleted TIMESTAMP DEFAULT NULL,
 
     PRIMARY KEY (job_id),
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE
@@ -209,30 +223,36 @@ CREATE TABLE Likes (
 );
 
 CREATE TABLE ListingAdmins (
-    user_id INTEGER,
-    listing_id INTEGER,
+    listing_admin_id SERIAL,
+    user_id INTEGER NOT NULL,
+    listing_id INTEGER NOT NULL,
 
-    PRIMARY KEY (user_id, listing_id),
+    PRIMARY KEY (listing_admin_id),
+    UNIQUE (user_id, listing_id),
     FOREIGN KEY (user_id) REFERENCES Users ON DELETE CASCADE,
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE
 );
 
 CREATE TABLE Participants (
-    listing_id INTEGER,
-    user_id INTEGER,
+    participant_id SERIAL,
+    listing_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     joined_on TIMESTAMP NOT NULL DEFAULT NOW(),
     end_on TIMESTAMP,
 
-    PRIMARY KEY (listing_id, user_id),
+    PRIMARY KEY (participant_id),
+    UNIQUE (listing_id, user_id),
     FOREIGN KEY (user_id) REFERENCES Users ON DELETE CASCADE,
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE
 );
 
 CREATE TABLE Subscriptions (
-    user_id INTEGER,
-    listing_id INTEGER,
+    subscription_id SERIAL,
+    user_id INTEGER NOT NULL,
+    listing_id INTEGER NOT NULL,
 
-    PRIMARY KEY (user_id, listing_id),
+    PRIMARY KEY (subscription_id),
+    UNIQUE (user_id, listing_id),
     FOREIGN KEY (user_id) REFERENCES Users ON DELETE CASCADE,
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE
 );
@@ -246,7 +266,3 @@ CREATE TABLE Milestones (
     PRIMARY KEY (milestone_id),
     FOREIGN KEY (listing_id) REFERENCES Listings ON DELETE CASCADE
 );
-
-
-
-
